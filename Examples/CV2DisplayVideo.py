@@ -1,5 +1,10 @@
+#This example is taken from:
+#https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html
+
 import numpy as np
 import cv2 as cv
+
+i = 0
  
 cap = cv.VideoCapture(0)
 if not cap.isOpened():
@@ -19,6 +24,8 @@ while True:
     cv.imshow('frame', gray)
     if cv.waitKey(1) == ord('q'):
         break
+    i += 1
+    print(i)
  
 # When everything done, release the capture
 cap.release()
