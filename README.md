@@ -13,6 +13,10 @@ Technology/Packages Used
 Assumptions
 -----------
 * The webcam being used is the only one connected to the host machine. In other words, `CV2.VideoCapture(0)` returns the webcam we care about.
+* An "event" is interpreted as movement in the camera stream, such that it is the first motion after an extended period of stillness. 
+  * For example, if the camera is looking down an empty hallway, and a cat walks into the frame, and walks around for a while, that whole thing counts as a single event. 
+  * However, if the cat falls asleep as doesn't move for some amount of time, then the cat getting up again counts as an event.
+  * In other words, an "event" is the start of movement after a baseline of some amount of stillness. This amount is TBD. Likely something to be done in configuration.
 
 Examples
 --------
