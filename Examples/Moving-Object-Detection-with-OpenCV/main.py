@@ -1,3 +1,7 @@
+#NOTE FROM ARTURO MCGILL, THE SUBMITTER.
+#Credit where credit is due. This entire example can be found the following github repository.
+#https://github.com/spmallick/learnopencv/tree/master/Moving-Object-Detection-with-OpenCV
+
 import cv2
 
 input_video = "sample/car.mp4"

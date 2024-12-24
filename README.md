@@ -17,7 +17,9 @@ Assumptions
 -----------
 * The webcam being used is the only one connected to the host machine. In other words, `CV2.VideoCapture(0)` returns the webcam we care about.
 * The webcam is mounted in one place and is not moving.
+* The webcam will be seeing a view form a corner of a room or hallway and we are looking for people or animals walking around.
 * An "event" is interpreted as any significant movement beyond baseline noise in our image. 
+
 
 Examples
 --------
