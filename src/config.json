@@ -1,0 +1,4 @@
+{
+    "movement_frame_check_interval":30,
+    "contour_size_threshold":3000
+}

@@ -1,5 +1,17 @@
 import numpy as np
 import cv2 as cv
+import json
+
+with open('src/config.json') as config_json:
+    config = json.load(config_json)
+    try:
+        movement_frame_check_interval = config["movement_frame_check_interval"]
+        contour_size_threshold = config["contour_size_threshold"]
+    except KeyError as kE:
+        print("KeyError getting configuration: " + kE.args[0])
+        exit()
+    except Exception as e:
+        print("Unknown error getting configurations: " + e)
 
 
 cap = cv.VideoCapture(0)
@@ -11,64 +23,76 @@ if not cap.isOpened():
 
 
 #Pretty much all the logic here is stolen from the example.
+frame_count = 0
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
 
-    # if frame is read correctly ret is True
-    if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
+    #We only chec
+    if frame_count % movement_frame_check_interval == 0:
 
-    #This masks out the background
-    background_masked_frame = backSub.apply(frame)
+        # if frame is read correctly ret is True
+        if not ret:
+            print("Can't receive frame (stream end?). Exiting ...")
+            break
 
-    #Remove shadows
-    retval, background_masked_shadows_removed_frame = cv.threshold(
-    background_masked_frame, 180, 255, cv.THRESH_BINARY)
+        #This masks out the background
+        background_masked_frame = backSub.apply(frame)
 
-    #Not quite sure what the kernel is but this "erodes" removing most of the digital dandruff.
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-    background_masked_shadows_removed_and_eroded_frame = cv.morphologyEx(background_masked_shadows_removed_frame, cv.MORPH_OPEN, kernel)
+        #Remove shadows
+        retval, background_masked_shadows_removed_frame = cv.threshold(
+        background_masked_frame, 180, 255, cv.THRESH_BINARY)
 
-
-    # Find contours. This is useless by itself since it's way too fine grain.
-    contours, hierarchy = cv.findContours(
-        background_masked_shadows_removed_and_eroded_frame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    
-    #This limits the contours to only be bigger ones.
-    #min_contour_area can be adjusted for sensitivity
-    min_contour_area = 10000  
-    large_contours = [
-        cnt for cnt in contours if cv.contourArea(cnt) > min_contour_area]
-    
-    #This block of code paints the contours on top of the original video. 
-    frame_out_colorful = frame.copy()
-    for cnt in large_contours:
-        # print(cnt.shape)
-        x, y, w, h = cv.boundingRect(cnt)
-        frame_out_colorful = cv.rectangle(
-            frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
-
-    #This block of code paints the contours on top of our mask.
-    frame_out_raw = cv.cvtColor(background_masked_shadows_removed_and_eroded_frame, cv.COLOR_GRAY2BGR)   
-    for cnt in large_contours:
-        # print(cnt.shape)
-        x, y, w, h = cv.boundingRect(cnt)
-        frame_out_raw = cv.rectangle(
-            frame_out_raw, (x, y), (x+w, y+h), (0, 0, 200), 3)
-    
+        #Not quite sure what the kernel is but this "erodes" removing most of the digital dandruff.
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
+        background_masked_shadows_removed_and_eroded_frame = cv.morphologyEx(background_masked_shadows_removed_frame, cv.MORPH_OPEN, kernel)
 
 
-    # Display the resulting frame
-#    cv.imshow('masked', background_masked_frame)
-#    cv.imshow('background_masked_shadows_removed', background_masked_shadows_removed_frame)
-#    cv.imshow('background_masked_shadows_removed_and_eroded', background_masked_shadows_removed_and_eroded_frame)
-    cv.imshow('frame_out_colorful', frame_out_colorful)
-    cv.imshow('frame_out_raw', frame_out_raw)
-    if cv.waitKey(1) == ord('q'):
-        break
+        # Find contours. This is useless by itself since it's way too fine grain.
+        contours, hierarchy = cv.findContours(
+            background_masked_shadows_removed_and_eroded_frame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        
+        #This limits the contours to only be bigger ones.
+        #contour_size_threshold can be adjusted for sensitivity
+        large_contours = [
+            cnt for cnt in contours if cv.contourArea(cnt) > contour_size_threshold]
+        
+        # if(not large_contours):
+        #     print("EMPTY")
+        # else:
+        #     print(large_contours)
+        
+        #This block of code paints the contours on top of the original video. 
+        frame_out_colorful = frame.copy()
+        for cnt in large_contours:
+            # print(cnt.shape)
+            x, y, w, h = cv.boundingRect(cnt)
+            frame_out_colorful = cv.rectangle(
+                frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
 
+        #This block of code paints the contours on top of our mask.
+        frame_out_raw = cv.cvtColor(background_masked_shadows_removed_and_eroded_frame, cv.COLOR_GRAY2BGR)   
+        for cnt in large_contours:
+            # print(cnt.shape)
+            x, y, w, h = cv.boundingRect(cnt)
+            frame_out_raw = cv.rectangle(
+                frame_out_raw, (x, y), (x+w, y+h), (0, 0, 200), 3)
+        
+   
+
+        # Display the resulting frame
+    #    cv.imshow('masked', background_masked_frame)
+    #    cv.imshow('background_masked_shadows_removed', background_masked_shadows_removed_frame)
+    #    cv.imshow('background_masked_shadows_removed_and_eroded', background_masked_shadows_removed_and_eroded_frame)
+        cv.imshow('frame_out_raw', frame_out_raw)
+        cv.imshow('frame_out_colorful', frame_out_colorful)
+
+        if cv.waitKey(25) & 0xFF == ord('q'):
+            break
+
+        print(frame_count)
+
+    frame_count += 1
 
 # When everything done, release the capture
 cap.release()
