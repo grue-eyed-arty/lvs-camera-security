@@ -27,8 +27,16 @@ while True:
         print("Can't receive frame (stream end?). Exiting ...")
         break
     # Our operations on the frame come here
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    foregroud_mask_frame = backSub.apply(frame)
     # Display the resulting frame
-    cv2.imshow('masked', backSub.apply(frame)) #OH HELL YES, THIS WORKS
+
+    # Find contours
+    contours, hierarchy = cv2.findContours(foregroud_mask_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # print(contours)
+    contoured_frame = cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
+    # Display the resulting frame
+    cv2.imshow('contoured', contoured_frame)
+    cv2.imshow('foreground_mask', foregroud_mask_frame) #OH HELL YES, THIS WORKS
     if cv2.waitKey(1) == ord('q'):
         break

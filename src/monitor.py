@@ -3,6 +3,7 @@ import cv2 as cv
 
 
 cap = cv.VideoCapture(0)
+backSub = cv.createBackgroundSubtractorMOG2()
 
 if not cap.isOpened():
     print("Cannot open camera")
@@ -19,8 +20,9 @@ while True:
         break
     # Our operations on the frame come here
     gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+    background_masked_frame = backSub.apply(frame)
     # Display the resulting frame
-    cv.imshow('frame', gray)
+    cv.imshow('masked', background_masked_frame)
     if cv.waitKey(1) == ord('q'):
         break
 
