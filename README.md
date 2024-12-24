@@ -19,7 +19,11 @@ Assumptions
 * The webcam is mounted in one place and is not moving.
 * The webcam will be seeing a view form a corner of a room or hallway and we are looking for people or animals walking around.
 * An "event" is interpreted as any significant movement beyond baseline noise in our image. 
+* Since the camera is facing into a room or hallway, we are okay with it being "oversensitive" to pick up movements down the hall.
 
+Elaborations
+------------
+* One thing to note is that instead of an approach of "check the feed every 3 seconds", or "check the feed every 0.5 seconds", or so on, the checking interval is done in number of frames. This does mean that different FPS cameras will need different configurations. However, this approach was taken as makes the code cleaner and also makes it simpler to define the intervals of inactivity that will separate one event from the next.
 
 Examples
 --------

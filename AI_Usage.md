@@ -13,3 +13,5 @@ Uses
 * Used ChatGPT to diagnose why the bounding boxes for the masked version of the video feed were showing up as black, instead of colored. Turns out it was because the entire video channel was actually set to grayscale. I just had to convert the channel back to a color friendly channel setting.
 
 * Used ChatGPT to come up with better config names because the ones I was coming up with were absolutely atrocious. 
+
+* Used ChatGPT to write quick, dirty, annoying helper functions.

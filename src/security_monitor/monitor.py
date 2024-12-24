@@ -1,20 +1,30 @@
 import numpy as np
 import cv2 as cv
 import json
+import helpers
 
-with open('src/config.json') as config_json:
-    config = json.load(config_json)
-    try:
-        movement_frame_check_interval = config["movement_frame_check_interval"]
-        contour_size_threshold = config["contour_size_threshold"]
-    except KeyError as kE:
-        print("KeyError getting configuration: " + kE.args[0])
-        exit()
-    except Exception as e:
-        print("Unknown error getting configurations: " + e)
+try:
+    with open('src/security_monitor/config.json') as config_json:
+        config = json.load(config_json)
+        try:
+            movement_check_interval_in_frames = config["movement_check_interval_in_frames"]
+            contour_size_threshold = config["contour_size_threshold"]
+        except KeyError as ke:
+            print("KeyError getting configuration: " + ke.args[0])
+            exit()
+        except Exception as e:
+            print("Unknown error getting configurations: " + e)
+except FileNotFoundError as fnfe:
+    print("Config file not file or incorrect path")
+    exit()
+except Exception as e:
+    print("Unknown error opening config file")
+    exit()
+
 
 
 cap = cv.VideoCapture(0)
+fps = int(cap.get(cv.CAP_PROP_FPS))
 backSub = cv.createBackgroundSubtractorMOG2()
 
 if not cap.isOpened():
@@ -28,8 +38,9 @@ while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
 
-    #We only chec
-    if frame_count % movement_frame_check_interval == 0:
+    #Since we define the amount of time between frames we check in milliseconds,
+    #we want to normalize for any possible FPS on the camera.
+    if frame_count % movement_check_interval_in_frames == 0:
 
         # if frame is read correctly ret is True
         if not ret:
@@ -48,12 +59,13 @@ while True:
         background_masked_shadows_removed_and_eroded_frame = cv.morphologyEx(background_masked_shadows_removed_frame, cv.MORPH_OPEN, kernel)
 
 
-        # Find contours. This is useless by itself since it's way too fine grain.
+        #Find contours. This is useless by itself since it's way too fine grain.
+        #But it's necessary for the next step of finding large contours.
         contours, hierarchy = cv.findContours(
             background_masked_shadows_removed_and_eroded_frame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         
         #This limits the contours to only be bigger ones.
-        #contour_size_threshold can be adjusted for sensitivity
+        #contour_size_threshold can be adjusted for sensitivituy. Defined in config.json.
         large_contours = [
             cnt for cnt in contours if cv.contourArea(cnt) > contour_size_threshold]
         
@@ -79,12 +91,12 @@ while True:
                 frame_out_raw, (x, y), (x+w, y+h), (0, 0, 200), 3)
         
    
-
+    #TODO Clean up unused imshows.
         # Display the resulting frame
     #    cv.imshow('masked', background_masked_frame)
     #    cv.imshow('background_masked_shadows_removed', background_masked_shadows_removed_frame)
     #    cv.imshow('background_masked_shadows_removed_and_eroded', background_masked_shadows_removed_and_eroded_frame)
-        cv.imshow('frame_out_raw', frame_out_raw)
+    #    cv.imshow('frame_out_raw', frame_out_raw)
         cv.imshow('frame_out_colorful', frame_out_colorful)
 
         if cv.waitKey(25) & 0xFF == ord('q'):

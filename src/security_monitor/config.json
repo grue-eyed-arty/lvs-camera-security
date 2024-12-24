@@ -1,0 +1,7 @@
+{
+    "movement_check_interval_in_frames":30,
+    "contour_size_threshold":3000,
+    "inactivity_timeout_in_frames":3000,
+    "video_output_directory":"blah",
+    "event_logging_directory":"blah"
+}
