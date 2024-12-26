@@ -14,4 +14,4 @@ Uses
 
 * Used ChatGPT to come up with better config names because the ones I was coming up with were absolutely atrocious. 
 
-* Used ChatGPT to write quick, dirty, annoying helper functions.
+* Used ChatGPT for quick little boilerplate such as "make dir if doesn't exist"

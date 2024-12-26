@@ -10,3 +10,4 @@ def calculate_frames(fps, milliseconds):
 
 def movement_detected(large_contours):
     return len(large_contours) > 0
+

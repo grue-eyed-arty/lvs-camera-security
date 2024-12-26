@@ -19,6 +19,8 @@ Assumptions
 * The webcam is mounted in one place and is not moving.
 * The webcam will be seeing a view form a corner of a room or hallway and we are looking for people or animals walking around.
 * An "event" is interpreted as any significant movement beyond baseline noise in our image. 
+  * Since we are tracking the "type" of event, but what a "type" means is pretty ambiguous and this is a very basic security system, each "event" will be split into three events that are logged. One for motion detected, one for the end of the motion (aka return to baseline), and one for the middle frame of the motion. The "type" will refer to these three categories.
+  * There is probably a smarter way to determine which frame should be captured for the purposes of capturing the most info about what's going on, but giving time constraints and the scope of the project, "the middle frame" seems like a reasonable heuristic. 
 * Since the camera is facing into a room or hallway, we are okay with it being "oversensitive" to pick up movements down the hall.
 
 Elaborations

@@ -2,6 +2,31 @@ import numpy as np
 import cv2 as cv
 import json
 import helpers
+import os
+from datetime import datetime
+
+def filepath_as_jpg(dt):
+    return video_output_directory + str(dt) + ".jpg"
+
+def process_event(event_frames_and_timestampes):
+
+    os.makedirs(video_output_directory, exist_ok=True)
+
+    #This is to avoid little flickers that really shouldn't count as an event.
+    #The minimum_event_length_in_frames is configurable.
+    if(len(event_frames) > minimum_event_length_in_frames):
+
+        first_frame, first_timestamp = event_frames[0]
+        middle_frame, middle_timestamp = event_frames[int(len(event_frames)/2)]
+        last_frame, last_timestamp = event_frames[-1]
+        
+       # cv.imshow("Middle of event", middle_frame_of_event)
+        image_name = str(datetime.now()) + ".jpg"
+        cv.imwrite(filepath_as_jpg(first_timestamp), first_frame)
+        cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
+        cv.imwrite(filepath_as_jpg(last_timestamp), last_frame)
+
+        #TODO write to log JSON file here.
 
 try:
     with open('src/security_monitor/config.json') as config_json:
@@ -9,6 +34,10 @@ try:
         try:
             movement_check_interval_in_frames = config["movement_check_interval_in_frames"]
             contour_size_threshold = config["contour_size_threshold"]
+            inactivity_timeout_in_frames = config["inactivity_timeout_in_frames"]
+            minimum_event_length_in_frames = config["minimum_event_length_in_frames"]
+            video_output_directory = config["video_output_directory"]
+            include_border_boxes_in_output = config["include_border_boxes_in_output"]
         except KeyError as ke:
             print("KeyError getting configuration: " + ke.args[0])
             exit()
@@ -18,7 +47,7 @@ except FileNotFoundError as fnfe:
     print("Config file not file or incorrect path")
     exit()
 except Exception as e:
-    print("Unknown error opening config file")
+    print("Unknown error opening config file: " + str(e))
     exit()
 
 
@@ -33,7 +62,9 @@ if not cap.isOpened():
 
 
 #Pretty much all the logic here is stolen from the example.
+inactivity_timer = 0
 frame_count = 0
+event_frames = []
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -73,23 +104,31 @@ while True:
         #     print("EMPTY")
         # else:
         #     print(large_contours)
+
+        #Logically equivalent to "if movement detected"
+        if(large_contours):
+            event_frames.append((frame, datetime.now()))
+        elif event_frames: #We only want this "wait for a bit then process" logic to keep in if we've been seeing motion
+            #If it's been less than movement frame inactivity timeout, we keep adding to the event.
+            #Otherwise, we assume the event is over, process the event, and start over.
+            if(inactivity_timer < inactivity_timeout_in_frames):
+                event_frames.append((frame, datetime.now())) #We want to keep track of the timestamp of each frame
+                inactivity_timer += 1
+            else:
+                process_event(event_frames)
+                event_frames = []
+                inactivity_timer = 0
+
         
         #This block of code paints the contours on top of the original video. 
-        frame_out_colorful = frame.copy()
-        for cnt in large_contours:
-            # print(cnt.shape)
-            x, y, w, h = cv.boundingRect(cnt)
-            frame_out_colorful = cv.rectangle(
-                frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
 
-        #This block of code paints the contours on top of our mask.
-        frame_out_raw = cv.cvtColor(background_masked_shadows_removed_and_eroded_frame, cv.COLOR_GRAY2BGR)   
-        for cnt in large_contours:
-            # print(cnt.shape)
-            x, y, w, h = cv.boundingRect(cnt)
-            frame_out_raw = cv.rectangle(
-                frame_out_raw, (x, y), (x+w, y+h), (0, 0, 200), 3)
-        
+        if include_border_boxes_in_output:
+            for cnt in large_contours:
+                # print(cnt.shape)
+                x, y, w, h = cv.boundingRect(cnt)
+                frame = cv.rectangle(
+                    frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
+
    
     #TODO Clean up unused imshows.
         # Display the resulting frame
@@ -97,12 +136,16 @@ while True:
     #    cv.imshow('background_masked_shadows_removed', background_masked_shadows_removed_frame)
     #    cv.imshow('background_masked_shadows_removed_and_eroded', background_masked_shadows_removed_and_eroded_frame)
     #    cv.imshow('frame_out_raw', frame_out_raw)
-        cv.imshow('frame_out_colorful', frame_out_colorful)
+        cv.imshow('frame_out_colorful', frame)
 
-        if cv.waitKey(25) & 0xFF == ord('q'):
-            break
+        #The way I'm doing my framerates seem to be breaking this functionality?
+        # if cv.waitKey(25) & 0xFF == ord('q'):
+        #     break
 
         print(frame_count)
+
+    if cv.waitKey(25) & 0xFF == ord('q'):
+        break
 
     frame_count += 1
 
