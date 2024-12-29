@@ -1,8 +1,9 @@
 {
-    "movement_check_interval_in_frames":2,
+    "movement_check_interval_in_frames":3,
     "contour_size_threshold":1500,
-    "inactivity_timeout_in_frames":3,
+    "inactivity_timeout_in_frames":10,
     "minimum_event_length_in_frames":5,
+    "capture_frame_interval":20,
     "include_border_boxes_in_output":true,
     "video_output_directory":"./captures/",
     "error_logging_directory":"./error_logs/",

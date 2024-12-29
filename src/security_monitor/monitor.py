@@ -5,8 +5,8 @@ import os
 from datetime import datetime
 
 #Declare our constants
-MOTION_DETECTED = "motion_detected"
-MIDDLE_OF_MOTION = "middle_of_motion"
+MOTION_START = "motion_detected"
+MOTION_IN_PROGRESS = "motion_in_progress"
 MOTION_ENDS = "motion_ends"
 
 def filename_as_jpg(dt):
@@ -18,9 +18,9 @@ def filepath_as_jpg(dt):
 
 #Since we are using NDJSON to avoid having to read our entire log back into memory everytime,
 #we want to stick a newline at the end of every entry.
-def create_json_line(filename, timestamp, event_type):
+def create_json_line(timestamp, event_type):
     return json.dumps({
-        "filename": filename,
+        "filename": filename_as_jpg(timestamp),
         "timestamp": str(timestamp),
         "type": event_type
     }) + "\n"
@@ -34,22 +34,37 @@ def process_event(event_frames):
     if(len(event_frames) > minimum_event_length_in_frames):
 
         first_frame, first_timestamp = event_frames[0]
-        middle_frame, middle_timestamp = event_frames[int(len(event_frames)/2)]
         last_frame, last_timestamp = event_frames[-1]
 
         
        #Add three images to the images directory.
-        cv.imwrite(filepath_as_jpg(first_timestamp), first_frame)
-        cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
-        cv.imwrite(filepath_as_jpg(last_timestamp), last_frame)
+        
+     #   cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
+        
 
         #Write data about the above to the 
-        with open(capture_logging_directory, 'w+') as capture_log:
-            capture_log.write(create_json_line(filename_as_jpg(first_timestamp), first_timestamp, MOTION_DETECTED))
-            capture_log.write(create_json_line(filename_as_jpg(middle_timestamp), middle_timestamp, MIDDLE_OF_MOTION))
-            capture_log.write(create_json_line(filename_as_jpg(last_timestamp), last_timestamp, MOTION_ENDS))
+        with open(capture_logging_directory, 'a+') as capture_log:
+            #Log the start of motion
+            cv.imwrite(filepath_as_jpg(first_timestamp), first_frame)
+            capture_log.write(create_json_line(first_timestamp, MOTION_START))
+            
+            
+            #Here we're only looking at the frames in the middle of the action. This means we disregard the first and last frames.
+            middle_frames = event_frames[1:-1]  #This line and the next was made with AI assistance because list comprehension and splicing can get annoying.
+            middle_frames = [frame for i, frame in enumerate(middle_frames) if i % capture_frame_interval == 0]
+            for middle_frame_tuple in middle_frames:
+                middle_frame, middle_timestamp = middle_frame_tuple
+                cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
+                capture_log.write(create_json_line(middle_timestamp, MOTION_IN_PROGRESS))
 
-        #TODO error handling
+            
+            #Log the end of motion
+            cv.imwrite(filepath_as_jpg(last_timestamp), last_frame)
+            capture_log.write(create_json_line(last_timestamp, MOTION_ENDS))
+
+    #TODO Remove this fun print statement
+    print("CAPTURE")
+
 
         
 
@@ -58,13 +73,14 @@ try:
         config = json.load(config_json)
         try:
             movement_check_interval_in_frames = config["movement_check_interval_in_frames"]
-            contour_size_threshold = config["contour_size_threshold"]
-            inactivity_timeout_in_frames = config["inactivity_timeout_in_frames"]
-            minimum_event_length_in_frames = config["minimum_event_length_in_frames"]
-            video_output_directory = config["video_output_directory"]
-            include_border_boxes_in_output = config["include_border_boxes_in_output"]
-            error_logging_directory = config["error_logging_directory"]
-            capture_logging_directory = config["capture_logging_directory"]
+            contour_size_threshold            = config["contour_size_threshold"]
+            inactivity_timeout_in_frames      = config["inactivity_timeout_in_frames"]
+            minimum_event_length_in_frames    = config["minimum_event_length_in_frames"]
+            video_output_directory            = config["video_output_directory"]
+            include_border_boxes_in_output    = config["include_border_boxes_in_output"]
+            error_logging_directory           = config["error_logging_directory"]
+            capture_logging_directory         = config["capture_logging_directory"]
+            capture_frame_interval            = config["capture_frame_interval"]
 
         except KeyError as ke:
             print("KeyError getting configuration: " + ke.args[0])
