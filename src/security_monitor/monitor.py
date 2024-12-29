@@ -66,36 +66,47 @@ def process_event(event_frames):
     print("CAPTURE")
 
 
-        
+def load_configs():
+    try:
+        #This is the only file path that is hardcoded since it's whenere the rest of the paths and configs live.
+        with open('src/security_monitor/config.json') as config_json:
+            config = json.load(config_json)
+            try:
+                #Since these are configurations we're constantly accesing, we want them global.
+                global movement_check_interval_in_frames
+                global contour_size_threshold           
+                global inactivity_timeout_in_frames     
+                global minimum_event_length_in_frames   
+                global video_output_directory           
+                global include_border_boxes_in_output   
+                global error_logging_directory          
+                global capture_logging_directory        
+                global capture_frame_interval 
 
-try:
-    with open('src/security_monitor/config.json') as config_json:
-        config = json.load(config_json)
-        try:
-            movement_check_interval_in_frames = config["movement_check_interval_in_frames"]
-            contour_size_threshold            = config["contour_size_threshold"]
-            inactivity_timeout_in_frames      = config["inactivity_timeout_in_frames"]
-            minimum_event_length_in_frames    = config["minimum_event_length_in_frames"]
-            video_output_directory            = config["video_output_directory"]
-            include_border_boxes_in_output    = config["include_border_boxes_in_output"]
-            error_logging_directory           = config["error_logging_directory"]
-            capture_logging_directory         = config["capture_logging_directory"]
-            capture_frame_interval            = config["capture_frame_interval"]
+                movement_check_interval_in_frames = config["movement_check_interval_in_frames"]
+                contour_size_threshold            = config["contour_size_threshold"]
+                inactivity_timeout_in_frames      = config["inactivity_timeout_in_frames"]
+                minimum_event_length_in_frames    = config["minimum_event_length_in_frames"]
+                video_output_directory            = config["video_output_directory"]
+                include_border_boxes_in_output    = config["include_border_boxes_in_output"]
+                error_logging_directory           = config["error_logging_directory"]
+                capture_logging_directory         = config["capture_logging_directory"]
+                capture_frame_interval            = config["capture_frame_interval"]
 
-        except KeyError as ke:
-            print("KeyError getting configuration: " + ke.args[0])
-            exit()
-        except Exception as e:
-            print("Unknown error getting configurations: " + e)
-except FileNotFoundError as fnfe:
-    print("Config file not file or incorrect path")
-    exit()
-except Exception as e:
-    print("Unknown error opening config file: " + str(e))
-    exit()
+            except KeyError as ke:
+                print("KeyError getting configuration: " + ke.args[0])
+                exit()
+            except Exception as e:
+                print("Unknown error getting configurations: " + e)
+    except FileNotFoundError as fnfe:
+        print("Config file not file or incorrect path")
+        exit()
+    except Exception as e:
+        print("Unknown error opening config file: " + str(e))
+        exit()
 
 
-
+load_configs()
 cap = cv.VideoCapture(0)
 fps = int(cap.get(cv.CAP_PROP_FPS))
 backSub = cv.createBackgroundSubtractorMOG2()
