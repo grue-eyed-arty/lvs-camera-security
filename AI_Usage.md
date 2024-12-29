@@ -14,4 +14,6 @@ Uses
 
 * Used ChatGPT to come up with better config names because the ones I was coming up with were absolutely atrocious. 
 
-* Used ChatGPT for quick little boilerplate such as "make dir if doesn't exist"
+* Used ChatGPT for quick little boilerplate such as "make dir if doesn't exist".
+
+* Used ChatGPT for brainstorming possible solutions to using JSON for logging since reading an entire JSON file into a dictionary DOES NOT scale well. Additionally, we never read the error or 

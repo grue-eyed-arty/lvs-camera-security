@@ -1,14 +1,31 @@
 import numpy as np
 import cv2 as cv
 import json
-import helpers
 import os
 from datetime import datetime
 
-def filepath_as_jpg(dt):
-    return video_output_directory + str(dt) + ".jpg"
+#Declare our constants
+MOTION_DETECTED = "motion_detected"
+MIDDLE_OF_MOTION = "middle_of_motion"
+MOTION_ENDS = "motion_ends"
 
-def process_event(event_frames_and_timestampes):
+def filename_as_jpg(dt):
+    return str(dt) + ".jpg"
+
+def filepath_as_jpg(dt):
+    return video_output_directory + filename_as_jpg(dt)
+
+
+#Since we are using NDJSON to avoid having to read our entire log back into memory everytime,
+#we want to stick a newline at the end of every entry.
+def create_json_line(filename, timestamp, event_type):
+    return json.dumps({
+        "filename": filename,
+        "timestamp": str(timestamp),
+        "type": event_type
+    }) + "\n"
+
+def process_event(event_frames):
 
     os.makedirs(video_output_directory, exist_ok=True)
 
@@ -19,14 +36,22 @@ def process_event(event_frames_and_timestampes):
         first_frame, first_timestamp = event_frames[0]
         middle_frame, middle_timestamp = event_frames[int(len(event_frames)/2)]
         last_frame, last_timestamp = event_frames[-1]
+
         
-       # cv.imshow("Middle of event", middle_frame_of_event)
-        image_name = str(datetime.now()) + ".jpg"
+       #Add three images to the images directory.
         cv.imwrite(filepath_as_jpg(first_timestamp), first_frame)
         cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
         cv.imwrite(filepath_as_jpg(last_timestamp), last_frame)
 
-        #TODO write to log JSON file here.
+        #Write data about the above to the 
+        with open(capture_logging_directory, 'w+') as capture_log:
+            capture_log.write(create_json_line(filename_as_jpg(first_timestamp), first_timestamp, MOTION_DETECTED))
+            capture_log.write(create_json_line(filename_as_jpg(middle_timestamp), middle_timestamp, MIDDLE_OF_MOTION))
+            capture_log.write(create_json_line(filename_as_jpg(last_timestamp), last_timestamp, MOTION_ENDS))
+
+        #TODO error handling
+
+        
 
 try:
     with open('src/security_monitor/config.json') as config_json:
@@ -38,6 +63,9 @@ try:
             minimum_event_length_in_frames = config["minimum_event_length_in_frames"]
             video_output_directory = config["video_output_directory"]
             include_border_boxes_in_output = config["include_border_boxes_in_output"]
+            error_logging_directory = config["error_logging_directory"]
+            capture_logging_directory = config["capture_logging_directory"]
+
         except KeyError as ke:
             print("KeyError getting configuration: " + ke.args[0])
             exit()
