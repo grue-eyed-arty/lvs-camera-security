@@ -9,6 +9,12 @@ MOTION_START = "motion_detected"
 MOTION_IN_PROGRESS = "motion_in_progress"
 MOTION_ENDS = "motion_ends"
 
+def get_camera():
+   try:
+    return cv.VideoCapture(0)
+   except:
+       pass #TODO figure out how I want to handle the case of no camera
+
 def filename_as_jpg(dt):
     return str(dt) + ".jpg"
 
@@ -33,14 +39,9 @@ def write_image_to_file_system(timestamp, frame):
     os.makedirs(os.path.dirname(video_output_directory), exist_ok=True)
     cv.imwrite(filepath_as_jpg(timestamp), frame)
 
-
-
 def add_frame_to_captures_and_log(timestamp, frame, event_type):
     write_image_to_file_system(timestamp, frame)
     write_line_to_capture_log(create_capture_ndjson_line(timestamp, event_type))
-
-
-
 
 #Since we are using NDJSON to avoid having to read our entire log back into memory everytime,
 #we want to stick a newline at the end of every entry.
@@ -113,6 +114,8 @@ def load_configs():
                 inactivity_timer = 0
                 frame_count = 0
                 event_frames = []
+                
+                #TODO Write success to activity log
 
             except KeyError as ke:
                 #TODO Log error
@@ -131,15 +134,15 @@ def load_configs():
         exit()
 
 
+
+#TODO write to activity log that program has started
 load_configs()
-cap = cv.VideoCapture(0)
-fps = int(cap.get(cv.CAP_PROP_FPS))
+cap = get_camera
 backSub = cv.createBackgroundSubtractorMOG2()
 
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
-
 
 #Pretty much all the logic here is stolen from the example. Some of the lines are taken verbatim.
 
@@ -153,6 +156,7 @@ while True:
 
         # if frame is read correctly ret is True
         if not ret:
+            #TODO write an error message not from the example. Handle the error.
             print("Can't receive frame (stream end?). Exiting ...")
             break
 
@@ -194,7 +198,7 @@ while True:
 
         
         #This block of code paints the contours on top of the original video. 
-
+        #This is optional depending on the 'include_border_boxes_in_output' config.
         if include_border_boxes_in_output:
             for cnt in large_contours:
                 # print(cnt.shape)
@@ -210,11 +214,12 @@ while True:
 
         print(frame_count)
 
+    #TODO Write that user has ended the program to actvity log
     if cv.waitKey(25) & 0xFF == ord('q'):
         break
 
     frame_count += 1
 
-# When everything done, release the capture
+#TODO Maybe have "user exited" happen here instead?
 cap.release()
 cv.destroyAllWindows()
