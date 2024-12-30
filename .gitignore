@@ -63,6 +63,11 @@ captures
 captures/
 captures/*
 
+#Logs
+logs
+logs/
+logs/*
+
 # Django stuff:
 *.log
 local_settings.py

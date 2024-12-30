@@ -1,11 +1,12 @@
 {
-    "movement_check_interval_in_frames":3,
-    "contour_size_threshold":1500,
+    "movement_check_interval_in_frames":5,
+    "contour_size_threshold":2000,
     "inactivity_timeout_in_frames":10,
-    "minimum_event_length_in_frames":5,
-    "capture_frame_interval":20,
+    "minimum_event_length_in_frames":10,
+    "capture_frame_interval":3,
     "include_border_boxes_in_output":true,
     "video_output_directory":"./captures/",
-    "error_logging_directory":"./error_logs/",
-    "capture_logging_directory":"./captures/capture_log.ndjson"
+    "error_log":"./logs/error_log.ndjson/",
+    "event_log":"./logs/event_log.ndjson/",
+    "capture_log":"./logs/capture_log.ndjson"
 }

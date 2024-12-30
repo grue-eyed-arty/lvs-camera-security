@@ -15,55 +15,68 @@ def filename_as_jpg(dt):
 def filepath_as_jpg(dt):
     return video_output_directory + filename_as_jpg(dt)
 
+def write_line_to_error_log(line):
+    write_line_to_log(line, error_log)
+
+def write_line_to_event_log(line):
+    write_line_to_log(line, event_log)
+
+def write_line_to_capture_log(line):
+    write_line_to_log(line, capture_log)
+
+def write_line_to_log(line, log):
+    os.makedirs(os.path.dirname(log), exist_ok=True) #This line was AI generated since I wasn't sure how to generate just the dir section of my log path.
+    with open(log, 'a+') as log_file:
+        log_file.write(line + "\n")
+
+def write_image_to_file_system(timestamp, frame):
+    os.makedirs(os.path.dirname(video_output_directory), exist_ok=True)
+    cv.imwrite(filepath_as_jpg(timestamp), frame)
+
+
+
+def add_frame_to_captures_and_log(timestamp, frame, event_type):
+    write_image_to_file_system(timestamp, frame)
+    write_line_to_capture_log(create_capture_ndjson_line(timestamp, event_type))
+
+
+
 
 #Since we are using NDJSON to avoid having to read our entire log back into memory everytime,
 #we want to stick a newline at the end of every entry.
-def create_json_line(timestamp, event_type):
+def create_capture_ndjson_line(timestamp, event_type):
     return json.dumps({
         "filename": filename_as_jpg(timestamp),
         "timestamp": str(timestamp),
         "type": event_type
-    }) + "\n"
+    })
 
 def process_event(event_frames):
-
-    os.makedirs(video_output_directory, exist_ok=True)
-
-    #This is to avoid little flickers that really shouldn't count as an event.
+    #This condition is to avoid little flickers that really shouldn't count as an event.
     #The minimum_event_length_in_frames is configurable.
     if(len(event_frames) > minimum_event_length_in_frames):
 
         first_frame, first_timestamp = event_frames[0]
         last_frame, last_timestamp = event_frames[-1]
+        middle_frames = event_frames[1:-1]  #This line and the next was made with AI assistance because list comprehension and splicing can get annoying.
+        middle_frames = [frame for i, frame in enumerate(middle_frames) if i % capture_frame_interval == 0]
 
-        
-       #Add three images to the images directory.
-        
-     #   cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
-        
+        #Write first frame to capture log and add image to file system.
+        add_frame_to_captures_and_log(first_timestamp, first_frame, MOTION_START)
 
-        #Write data about the above to the 
-        with open(capture_logging_directory, 'a+') as capture_log:
-            #Log the start of motion
-            cv.imwrite(filepath_as_jpg(first_timestamp), first_frame)
-            capture_log.write(create_json_line(first_timestamp, MOTION_START))
+        #Write every Xth frame to capture log and add image to file system,
+        #where X is 'capture_frame_inteval' in the config.
+        for middle_frame_tuple in middle_frames:
+            middle_frame, middle_timestamp = middle_frame_tuple
+
+            add_frame_to_captures_and_log(middle_timestamp, middle_frame, MOTION_IN_PROGRESS)
             
-            
-            #Here we're only looking at the frames in the middle of the action. This means we disregard the first and last frames.
-            middle_frames = event_frames[1:-1]  #This line and the next was made with AI assistance because list comprehension and splicing can get annoying.
-            middle_frames = [frame for i, frame in enumerate(middle_frames) if i % capture_frame_interval == 0]
-            for middle_frame_tuple in middle_frames:
-                middle_frame, middle_timestamp = middle_frame_tuple
-                cv.imwrite(filepath_as_jpg(middle_timestamp), middle_frame)
-                capture_log.write(create_json_line(middle_timestamp, MOTION_IN_PROGRESS))
 
-            
-            #Log the end of motion
-            cv.imwrite(filepath_as_jpg(last_timestamp), last_frame)
-            capture_log.write(create_json_line(last_timestamp, MOTION_ENDS))
+        #Write last frame to capture log and add image to file system.
+        add_frame_to_captures_and_log(last_timestamp, last_frame, MOTION_ENDS)
 
-    #TODO Remove this fun print statement
-    print("CAPTURE")
+        #TODO Remove this fun print statement
+        print("CAPTURE")
 
 
 def load_configs():
@@ -79,9 +92,13 @@ def load_configs():
                 global minimum_event_length_in_frames   
                 global video_output_directory           
                 global include_border_boxes_in_output   
-                global error_logging_directory          
-                global capture_logging_directory        
+                global error_log     
+                global event_log     
+                global capture_log        
                 global capture_frame_interval 
+                global inactivity_timer
+                global frame_count
+                global event_frames
 
                 movement_check_interval_in_frames = config["movement_check_interval_in_frames"]
                 contour_size_threshold            = config["contour_size_threshold"]
@@ -89,19 +106,27 @@ def load_configs():
                 minimum_event_length_in_frames    = config["minimum_event_length_in_frames"]
                 video_output_directory            = config["video_output_directory"]
                 include_border_boxes_in_output    = config["include_border_boxes_in_output"]
-                error_logging_directory           = config["error_logging_directory"]
-                capture_logging_directory         = config["capture_logging_directory"]
+                error_log                         = config["error_log"]
+                event_log                         = config["event_log"]
+                capture_log                       = config["capture_log"]
                 capture_frame_interval            = config["capture_frame_interval"]
+                inactivity_timer = 0
+                frame_count = 0
+                event_frames = []
 
             except KeyError as ke:
+                #TODO Log error
                 print("KeyError getting configuration: " + ke.args[0])
                 exit()
             except Exception as e:
+                #TODO Log error
                 print("Unknown error getting configurations: " + e)
     except FileNotFoundError as fnfe:
+        #TODO Log error
         print("Config file not file or incorrect path")
         exit()
     except Exception as e:
+        #TODO Log error
         print("Unknown error opening config file: " + str(e))
         exit()
 
@@ -116,10 +141,8 @@ if not cap.isOpened():
     exit()
 
 
-#Pretty much all the logic here is stolen from the example.
-inactivity_timer = 0
-frame_count = 0
-event_frames = []
+#Pretty much all the logic here is stolen from the example. Some of the lines are taken verbatim.
+
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -155,11 +178,6 @@ while True:
         large_contours = [
             cnt for cnt in contours if cv.contourArea(cnt) > contour_size_threshold]
         
-        # if(not large_contours):
-        #     print("EMPTY")
-        # else:
-        #     print(large_contours)
-
         #Logically equivalent to "if movement detected"
         if(large_contours):
             event_frames.append((frame, datetime.now()))
@@ -187,15 +205,8 @@ while True:
    
     #TODO Clean up unused imshows.
         # Display the resulting frame
-    #    cv.imshow('masked', background_masked_frame)
-    #    cv.imshow('background_masked_shadows_removed', background_masked_shadows_removed_frame)
-    #    cv.imshow('background_masked_shadows_removed_and_eroded', background_masked_shadows_removed_and_eroded_frame)
-    #    cv.imshow('frame_out_raw', frame_out_raw)
         cv.imshow('frame_out_colorful', frame)
 
-        #The way I'm doing my framerates seem to be breaking this functionality?
-        # if cv.waitKey(25) & 0xFF == ord('q'):
-        #     break
 
         print(frame_count)
 
