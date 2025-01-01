@@ -35,3 +35,14 @@ class MonitorTest(unittest.TestCase):
         })
         result = monitor.create_activity_ndjson_line(timestamp, "test_activity")
         self.assertEqual(result, expected)
+
+    #Manually tests happy and null path
+    def test_filename_as_jpg(self):
+        now = datetime.now()
+        name = monitor.filename_as_jpg(now)
+        assert(name == str(now) + ".jpg")
+
+        now = None
+        name = monitor.filename_as_jpg(now)
+        assert(name == str(now) + ".jpg")
+

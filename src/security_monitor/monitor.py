@@ -12,7 +12,7 @@ MOTION_ENDS = "motion_ends"
 def get_camera():
    try:
     camera = cv.VideoCapture(0)
-    write_line_to_event_log(create_activity_ndjson_line(datetime.now(), "Camera succesfully initialized."))
+    write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Camera succesfully initialized."))
     return camera
    except Exception as e: 
        write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exception raised when getting camera. Exiting system.", e))
@@ -22,7 +22,7 @@ def get_camera():
 def get_background_subtractor():
    try:
        backSub = cv.createBackgroundSubtractorMOG2()
-       write_line_to_event_log(create_activity_ndjson_line(datetime.now(), "Background subtractor succesfully created."))
+       write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Background subtractor succesfully created."))
        return backSub
    except Exception as e: 
        write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exception raised when creating background subtractor. Exiting system.", e))
@@ -81,7 +81,7 @@ def create_error_ndjson_line(timestamp, error_description, exception):
         "exception_body":str(exception)
     })
 
-def create_activity_ndjson_line(timestamp, activity_description):
+def create_event_ndjson_line(timestamp, activity_description):
     return json.dumps({
         "timestamp":str(timestamp),
         "activity":activity_description
@@ -151,7 +151,7 @@ def load_configs():
                 event_frames = []
                 
                 #TODO Write success to activity log
-                write_line_to_event_log(create_activity_ndjson_line(datetime.now(), "Configurations loaded"))
+                write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Configurations loaded"))
 
 
     #Note: If we can't log the configs, we don't know where our error log is. 
@@ -184,8 +184,6 @@ if __name__ == "__main__":
         print("Cannot open camera")
         exit()
 
-    #Pretty much all the logic here is stolen from the example. Some of the lines are taken verbatim.
-
     while True:
         # Capture frame-by-frame
         ret, frame = cap.read()
@@ -199,6 +197,8 @@ if __name__ == "__main__":
                 #Testing shows that this is how CV2 checks for "the camera was disconnected"
                 #TODO write an error message not from the example. Handle the error.
                 print("Can't receive frame (stream end?). Exiting ...")
+                write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exting program due to camera error.", None))
+                write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Exting program due to camera error."))
                 break
 
             #This masks out the background
@@ -236,31 +236,27 @@ if __name__ == "__main__":
                     process_event(event_frames)
                     event_frames = []
                     inactivity_timer = 0
-
             
             #This block of code paints the contours on top of the original video. 
             #This is optional depending on the 'include_border_boxes_in_output' config.
+            #The actual logic is from the example.
             if include_border_boxes_in_output:
                 for cnt in large_contours:
-                    # print(cnt.shape)
                     x, y, w, h = cv.boundingRect(cnt)
                     frame = cv.rectangle(
                         frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
 
-    
-        #TODO Clean up unused imshows.
             # Display the resulting frame
             cv.imshow('frame_out_colorful', frame)
 
-
-            print(frame_count)
-
         #TODO Write that user has ended the program to actvity log
         if cv.waitKey(25) & 0xFF == ord('q'):
+            write_line_to_event_log(create_event_ndjson_line(datetime.now(), "User terminating program."))
             break
 
         frame_count += 1
-
+ 
     #TODO Maybe have "user exited" happen here instead?
     cap.release()
     cv.destroyAllWindows()
+    write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Program gracefully exiting."))
