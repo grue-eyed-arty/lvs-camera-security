@@ -11,9 +11,23 @@ MOTION_ENDS = "motion_ends"
 
 def get_camera():
    try:
-    return cv.VideoCapture(0)
-   except:
-       pass #TODO figure out how I want to handle the case of no camera
+    camera = cv.VideoCapture(0)
+    write_line_to_event_log(create_activity_ndjson_line(datetime.now(), "Camera succesfully initialized."))
+    return camera
+   except Exception as e: 
+       write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exception raised when getting camera. Exiting system.", e))
+       print("Exception raised when getting camera. Exiting system. See error log for details.")
+       exit()
+
+def get_background_subtractor():
+   try:
+       backSub = cv.createBackgroundSubtractorMOG2()
+       write_line_to_event_log(create_activity_ndjson_line(datetime.now(), "Background subtractor succesfully created."))
+       return backSub
+   except Exception as e: 
+       write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exception raised when creating background subtractor. Exiting system.", e))
+       print("Exception raised when creating background subtractor. Exiting system. See error log for details.")
+       exit()
 
 def filename_as_jpg(dt):
     return str(dt) + ".jpg"
@@ -31,9 +45,17 @@ def write_line_to_capture_log(line):
     write_line_to_log(line, capture_log)
 
 def write_line_to_log(line, log):
-    os.makedirs(os.path.dirname(log), exist_ok=True) #This line was AI generated since I wasn't sure how to generate just the dir section of my log path.
-    with open(log, 'a+') as log_file:
-        log_file.write(line + "\n")
+    
+    try:
+        os.makedirs(os.path.dirname(log), exist_ok=True) #This line was AI generated since I wasn't sure how to generate just the dir section of my log path.
+        with open(log, 'a+') as log_file:
+            log_file.write(line + "\n")
+    except IsADirectoryError as iade:
+        error_line = create_error_ndjson_line(datetime.now(), "Attempting to use a directory as a log. Check config files.", iade)
+        write_line_to_error_log(error_line)
+    except Exception as exception:
+        error_line = create_error_ndjson_line(datetime.now(), "Unknown error attempting to write to a log.", exception)
+        write_line_to_error_log(error_line)
 
 def write_image_to_file_system(timestamp, frame):
     os.makedirs(os.path.dirname(video_output_directory), exist_ok=True)
@@ -50,6 +72,19 @@ def create_capture_ndjson_line(timestamp, event_type):
         "filename": filename_as_jpg(timestamp),
         "timestamp": str(timestamp),
         "type": event_type
+    })
+
+def create_error_ndjson_line(timestamp, error_description, exception):
+    return json.dumps({
+        "timestamp":str(timestamp),
+        "error":error_description,
+        "exception_body":str(exception)
+    })
+
+def create_activity_ndjson_line(timestamp, activity_description):
+    return json.dumps({
+        "timestamp":str(timestamp),
+        "activity":activity_description
     })
 
 def process_event(event_frames):
@@ -116,29 +151,34 @@ def load_configs():
                 event_frames = []
                 
                 #TODO Write success to activity log
+                write_line_to_event_log(create_activity_ndjson_line(datetime.now(), "Configurations loaded"))
 
+
+    #Note: If we can't log the configs, we don't know where our error log is. 
+    #Therefore these error handles should basically never actually happen, or rather never CAN happen.
+    #Essentially consider them here for the sake of completeness, rather than functionality.
             except KeyError as ke:
-                #TODO Log error
+                write_line_to_error_log(create_error_ndjson_line(datetime.now(), "KeyError getting configuration: " + ke.args[0], ke))
                 print("KeyError getting configuration: " + ke.args[0])
                 exit()
             except Exception as e:
-                #TODO Log error
-                print("Unknown error getting configurations: " + e)
+                write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Unknown error getting configuration. ", e))
+                print("Unknown error getting configurations. See error log for details.")
     except FileNotFoundError as fnfe:
-        #TODO Log error
+        write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Config file not file or incorrect path", fnfe))
         print("Config file not file or incorrect path")
         exit()
     except Exception as e:
-        #TODO Log error
-        print("Unknown error opening config file: " + str(e))
+        write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Unknown error opening config file. ", e))
+        print("Unknown error opening config file. See error log for details.")
         exit()
 
 
 
-#TODO write to activity log that program has started
 load_configs()
-cap = get_camera
-backSub = cv.createBackgroundSubtractorMOG2()
+
+cap = get_camera()
+backSub = get_background_subtractor()
 
 if not cap.isOpened():
     print("Cannot open camera")
@@ -156,6 +196,7 @@ while True:
 
         # if frame is read correctly ret is True
         if not ret:
+            #Testing shows that this is how CV2 checks for "the camera was disconnected"
             #TODO write an error message not from the example. Handle the error.
             print("Can't receive frame (stream end?). Exiting ...")
             break

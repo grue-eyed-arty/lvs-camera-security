@@ -3,10 +3,10 @@
     "contour_size_threshold":2000,
     "inactivity_timeout_in_frames":10,
     "minimum_event_length_in_frames":10,
-    "capture_frame_interval":3,
+    "capture_frame_interval":10,
     "include_border_boxes_in_output":true,
     "video_output_directory":"./captures/",
-    "error_log":"./logs/error_log.ndjson/",
-    "event_log":"./logs/event_log.ndjson/",
+    "error_log":"./logs/error_log.ndjson",
+    "event_log":"./logs/event_log.ndjson",
     "capture_log":"./logs/capture_log.ndjson"
 }

@@ -26,11 +26,13 @@ Assumptions
 * Newline Delimited JSON (NDJSON) satisfes the requirement of being "JSON" for the event tracking and the error tracking and the activity tracking. I am going with this approach since we never actually need to do anything with either of these JSONs so, this avoids wasting time loading them into memory. Instead we just concat to the end.
 * Logging an error never throws an error itself. This is to avoid the hellish despair of trying to log an error from an error logging an error from an error logging an error for an error logging an error ad infinitum.
 * The requirements say that "Activities" should be tracked. In lieu of anything else to track, I am assuming that it is fine to just track "the user started the system" and "the user gracefully exited the system".
+* In general, users aren't going to expected to be directly interfacing with the various functions of the program. This avoids the general headache of having to explicltly handle every possible combination of nulls and wrong typings, something that I'd really rather avoid considering I'm doing this assignment while actively in the process of moving to the other side of the world.
 
 Elaborations/Notes
 ------------
 * One thing to note is that instead of an approach of "check the feed every 3 seconds", or "check the feed every 0.5 seconds", or so on, the checking interval is done in number of frames. This does mean that different FPS cameras will need different configurations. However, this approach was taken as makes the code cleaner and also makes it simpler to define the intervals of inactivity that will separate one event from the next.
 * Both for myself as a developer, and for whoever is reviewing this project, I have includes an Examples folder with example code provided by the developers of the various packges. This is both for just the sake of providing an example, as well as for providing me as the developer a playground to work with. Some of the example code is kept in tact, somee of it is marked up by me for the sake of experimentation and learning. 
+* I am making this assignment while moving from the USA to New Zealand. Please consider this situation when evaluating me.
 
 AI Assistance
 -------------
