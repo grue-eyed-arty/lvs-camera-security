@@ -16,4 +16,6 @@ Uses
 
 * Used ChatGPT for quick little boilerplate such as "make dir if doesn't exist".
 
-* Used ChatGPT for brainstorming possible solutions to using JSON for logging since reading an entire JSON file into a dictionary DOES NOT scale well. Additionally, we never read the error or 
+* Used ChatGPT for brainstorming possible solutions to using JSON for logging since reading an entire JSON file into a dictionary DOES NOT scale well.
+
+* Used ChatGPT to write a few unit tests since a lot of them contain a lot of the same stuff.

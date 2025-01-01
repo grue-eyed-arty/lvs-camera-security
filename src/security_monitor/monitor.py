@@ -174,93 +174,93 @@ def load_configs():
         exit()
 
 
+if __name__ == "__main__":
+    load_configs()
 
-load_configs()
+    cap = get_camera()
+    backSub = get_background_subtractor()
 
-cap = get_camera()
-backSub = get_background_subtractor()
+    if not cap.isOpened():
+        print("Cannot open camera")
+        exit()
 
-if not cap.isOpened():
-    print("Cannot open camera")
-    exit()
+    #Pretty much all the logic here is stolen from the example. Some of the lines are taken verbatim.
 
-#Pretty much all the logic here is stolen from the example. Some of the lines are taken verbatim.
+    while True:
+        # Capture frame-by-frame
+        ret, frame = cap.read()
 
-while True:
-    # Capture frame-by-frame
-    ret, frame = cap.read()
+        #Since we define the amount of time between frames we check in milliseconds,
+        #we want to normalize for any possible FPS on the camera.
+        if frame_count % movement_check_interval_in_frames == 0:
 
-    #Since we define the amount of time between frames we check in milliseconds,
-    #we want to normalize for any possible FPS on the camera.
-    if frame_count % movement_check_interval_in_frames == 0:
+            # if frame is read correctly ret is True
+            if not ret:
+                #Testing shows that this is how CV2 checks for "the camera was disconnected"
+                #TODO write an error message not from the example. Handle the error.
+                print("Can't receive frame (stream end?). Exiting ...")
+                break
 
-        # if frame is read correctly ret is True
-        if not ret:
-            #Testing shows that this is how CV2 checks for "the camera was disconnected"
-            #TODO write an error message not from the example. Handle the error.
-            print("Can't receive frame (stream end?). Exiting ...")
+            #This masks out the background
+            background_masked_frame = backSub.apply(frame)
+
+            #Remove shadows
+            retval, background_masked_shadows_removed_frame = cv.threshold(
+            background_masked_frame, 180, 255, cv.THRESH_BINARY)
+
+            #Not quite sure what the kernel is but this "erodes" removing most of the digital dandruff.
+            kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
+            background_masked_shadows_removed_and_eroded_frame = cv.morphologyEx(background_masked_shadows_removed_frame, cv.MORPH_OPEN, kernel)
+
+
+            #Find contours. This is useless by itself since it's way too fine grain.
+            #But it's necessary for the next step of finding large contours.
+            contours, hierarchy = cv.findContours(
+                background_masked_shadows_removed_and_eroded_frame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            
+            #This limits the contours to only be bigger ones.
+            #contour_size_threshold can be adjusted for sensitivituy. Defined in config.json.
+            large_contours = [
+                cnt for cnt in contours if cv.contourArea(cnt) > contour_size_threshold]
+            
+            #Logically equivalent to "if movement detected"
+            if(large_contours):
+                event_frames.append((frame, datetime.now()))
+            elif event_frames: #We only want this "wait for a bit then process" logic to keep in if we've been seeing motion
+                #If it's been less than movement frame inactivity timeout, we keep adding to the event.
+                #Otherwise, we assume the event is over, process the event, and start over.
+                if(inactivity_timer < inactivity_timeout_in_frames):
+                    event_frames.append((frame, datetime.now())) #We want to keep track of the timestamp of each frame
+                    inactivity_timer += 1
+                else:
+                    process_event(event_frames)
+                    event_frames = []
+                    inactivity_timer = 0
+
+            
+            #This block of code paints the contours on top of the original video. 
+            #This is optional depending on the 'include_border_boxes_in_output' config.
+            if include_border_boxes_in_output:
+                for cnt in large_contours:
+                    # print(cnt.shape)
+                    x, y, w, h = cv.boundingRect(cnt)
+                    frame = cv.rectangle(
+                        frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
+
+    
+        #TODO Clean up unused imshows.
+            # Display the resulting frame
+            cv.imshow('frame_out_colorful', frame)
+
+
+            print(frame_count)
+
+        #TODO Write that user has ended the program to actvity log
+        if cv.waitKey(25) & 0xFF == ord('q'):
             break
 
-        #This masks out the background
-        background_masked_frame = backSub.apply(frame)
+        frame_count += 1
 
-        #Remove shadows
-        retval, background_masked_shadows_removed_frame = cv.threshold(
-        background_masked_frame, 180, 255, cv.THRESH_BINARY)
-
-        #Not quite sure what the kernel is but this "erodes" removing most of the digital dandruff.
-        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-        background_masked_shadows_removed_and_eroded_frame = cv.morphologyEx(background_masked_shadows_removed_frame, cv.MORPH_OPEN, kernel)
-
-
-        #Find contours. This is useless by itself since it's way too fine grain.
-        #But it's necessary for the next step of finding large contours.
-        contours, hierarchy = cv.findContours(
-            background_masked_shadows_removed_and_eroded_frame, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-        
-        #This limits the contours to only be bigger ones.
-        #contour_size_threshold can be adjusted for sensitivituy. Defined in config.json.
-        large_contours = [
-            cnt for cnt in contours if cv.contourArea(cnt) > contour_size_threshold]
-        
-        #Logically equivalent to "if movement detected"
-        if(large_contours):
-            event_frames.append((frame, datetime.now()))
-        elif event_frames: #We only want this "wait for a bit then process" logic to keep in if we've been seeing motion
-            #If it's been less than movement frame inactivity timeout, we keep adding to the event.
-            #Otherwise, we assume the event is over, process the event, and start over.
-            if(inactivity_timer < inactivity_timeout_in_frames):
-                event_frames.append((frame, datetime.now())) #We want to keep track of the timestamp of each frame
-                inactivity_timer += 1
-            else:
-                process_event(event_frames)
-                event_frames = []
-                inactivity_timer = 0
-
-        
-        #This block of code paints the contours on top of the original video. 
-        #This is optional depending on the 'include_border_boxes_in_output' config.
-        if include_border_boxes_in_output:
-            for cnt in large_contours:
-                # print(cnt.shape)
-                x, y, w, h = cv.boundingRect(cnt)
-                frame = cv.rectangle(
-                    frame, (x, y), (x+w, y+h), (0, 0, 200), 3)
-
-   
-    #TODO Clean up unused imshows.
-        # Display the resulting frame
-        cv.imshow('frame_out_colorful', frame)
-
-
-        print(frame_count)
-
-    #TODO Write that user has ended the program to actvity log
-    if cv.waitKey(25) & 0xFF == ord('q'):
-        break
-
-    frame_count += 1
-
-#TODO Maybe have "user exited" happen here instead?
-cap.release()
-cv.destroyAllWindows()
+    #TODO Maybe have "user exited" happen here instead?
+    cap.release()
+    cv.destroyAllWindows()
