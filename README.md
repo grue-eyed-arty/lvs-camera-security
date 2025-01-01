@@ -13,6 +13,8 @@ Technology and Resources Packages Used
 * https://github.com/spmallick/learnopencv/tree/master/Moving-Object-Detection-with-OpenCV
   * This repo is a great resoruce for seeing real example usage of the OpenCV project.  
 
+* See requirements.txt and be sure to `pip install` them all first.
+
 Assumptions
 -----------
 * The webcam being used is the only one connected to the host machine. In other words, `CV2.VideoCapture(0)` returns the webcam we care about.

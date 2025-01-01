@@ -45,7 +45,6 @@ def write_line_to_capture_log(line):
     write_line_to_log(line, capture_log)
 
 def write_line_to_log(line, log):
-    
     try:
         os.makedirs(os.path.dirname(log), exist_ok=True) #This line was AI generated since I wasn't sure how to generate just the dir section of my log path.
         with open(log, 'a+') as log_file:
@@ -74,6 +73,9 @@ def create_capture_ndjson_line(timestamp, event_type):
         "type": event_type
     })
 
+
+#Generates the NDJSON for the error log.
+#Note that this can be used even there isn't an actual exception throw.
 def create_error_ndjson_line(timestamp, error_description, exception):
     return json.dumps({
         "timestamp":str(timestamp),
@@ -81,17 +83,21 @@ def create_error_ndjson_line(timestamp, error_description, exception):
         "exception_body":str(exception)
     })
 
+#Generates the NDJSON for the event log.
+#Events and flexible.
 def create_event_ndjson_line(timestamp, activity_description):
     return json.dumps({
         "timestamp":str(timestamp),
         "activity":activity_description
     })
 
+#The main logic body of the security system
 def process_event(event_frames):
     #This condition is to avoid little flickers that really shouldn't count as an event.
     #The minimum_event_length_in_frames is configurable.
     if(len(event_frames) > minimum_event_length_in_frames):
 
+        #We capture the first frame, last frame, and every Xth middle frame.
         first_frame, first_timestamp = event_frames[0]
         last_frame, last_timestamp = event_frames[-1]
         middle_frames = event_frames[1:-1]  #This line and the next was made with AI assistance because list comprehension and splicing can get annoying.
@@ -104,20 +110,15 @@ def process_event(event_frames):
         #where X is 'capture_frame_inteval' in the config.
         for middle_frame_tuple in middle_frames:
             middle_frame, middle_timestamp = middle_frame_tuple
-
             add_frame_to_captures_and_log(middle_timestamp, middle_frame, MOTION_IN_PROGRESS)
             
 
         #Write last frame to capture log and add image to file system.
         add_frame_to_captures_and_log(last_timestamp, last_frame, MOTION_ENDS)
 
-        #TODO Remove this fun print statement
-        print("CAPTURE")
-
-
 def load_configs():
     try:
-        #This is the only file path that is hardcoded since it's whenere the rest of the paths and configs live.
+        #This is the only file path that is hardcoded since it's where the rest of the paths and configs live.
         with open('src/security_monitor/config.json') as config_json:
             config = json.load(config_json)
             try:
@@ -150,9 +151,7 @@ def load_configs():
                 frame_count = 0
                 event_frames = []
                 
-                #TODO Write success to activity log
                 write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Configurations loaded"))
-
 
     #Note: If we can't log the configs, we don't know where our error log is. 
     #Therefore these error handles should basically never actually happen, or rather never CAN happen.
@@ -175,13 +174,16 @@ def load_configs():
 
 
 if __name__ == "__main__":
-    load_configs()
 
+    #Starting boilerplate. Error handing and logging is done within the methods themselves.
+    load_configs()
     cap = get_camera()
     backSub = get_background_subtractor()
 
+    #This section is *probably* redundant since any exceptions initialization the camera are handled in get_camera()
+    #But being safe. 
     if not cap.isOpened():
-        print("Cannot open camera")
+        write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Unknown error accessing camera.  ", None))
         exit()
 
     while True:
@@ -198,7 +200,6 @@ if __name__ == "__main__":
                 #TODO write an error message not from the example. Handle the error.
                 print("Can't receive frame (stream end?). Exiting ...")
                 write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exting program due to camera error.", None))
-                write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Exting program due to camera error."))
                 break
 
             #This masks out the background
@@ -249,14 +250,14 @@ if __name__ == "__main__":
             # Display the resulting frame
             cv.imshow('frame_out_colorful', frame)
 
-        #TODO Write that user has ended the program to actvity log
+        #If user presses Q, then log and exit.
         if cv.waitKey(25) & 0xFF == ord('q'):
             write_line_to_event_log(create_event_ndjson_line(datetime.now(), "User terminating program."))
             break
 
         frame_count += 1
  
-    #TODO Maybe have "user exited" happen here instead?
+    #This is just gracefully terminating the program.
     cap.release()
     cv.destroyAllWindows()
     write_line_to_event_log(create_event_ndjson_line(datetime.now(), "Program gracefully exiting."))
