@@ -3,6 +3,10 @@ from src.security_monitor import monitor
 from datetime import datetime
 import json
 
+#NOTE: File creation and appending to existing files does not lend itself
+#very well to unit testing like this. Between that and the process of actively
+#moving across the world, I have opted to keep log and image capture testing manual.
+
 class MonitorTest(unittest.TestCase):
     #Partially AI generated since this is just a quick verification of the ndjson.
     def test_create_capture_ndjson_line(self):

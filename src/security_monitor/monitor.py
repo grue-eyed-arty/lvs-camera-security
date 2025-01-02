@@ -9,6 +9,9 @@ MOTION_START = "motion_detected"
 MOTION_IN_PROGRESS = "motion_in_progress"
 MOTION_ENDS = "motion_ends"
 
+#Initializes the primary webcam.
+#Testing has shown that an external USB webcam takes priority
+#over the built-in webcam.
 def get_camera():
    try:
     camera = cv.VideoCapture(0)
@@ -19,6 +22,8 @@ def get_camera():
        print("Exception raised when getting camera. Exiting system. See error log for details.")
        exit()
 
+#This generates the background subtractor, which basically
+#highlights where actual movement is happening.
 def get_background_subtractor():
    try:
        backSub = cv.createBackgroundSubtractorMOG2()
@@ -29,12 +34,14 @@ def get_background_subtractor():
        print("Exception raised when creating background subtractor. Exiting system. See error log for details.")
        exit()
 
+#These are a couple helper functions to make file names and paths easier.
 def filename_as_jpg(dt):
     return str(dt) + ".jpg"
 
 def filepath_as_jpg(dt):
     return video_output_directory + filename_as_jpg(dt)
 
+#These functions just point to the various logs.
 def write_line_to_error_log(line):
     write_line_to_log(line, error_log)
 
@@ -44,6 +51,8 @@ def write_line_to_event_log(line):
 def write_line_to_capture_log(line):
     write_line_to_log(line, capture_log)
 
+#This function (used by the above funcitons) writes to a specified log.
+#It also takes care of exception handling.
 def write_line_to_log(line, log):
     try:
         os.makedirs(os.path.dirname(log), exist_ok=True) #This line was AI generated since I wasn't sure how to generate just the dir section of my log path.
@@ -116,6 +125,7 @@ def process_event(event_frames):
         #Write last frame to capture log and add image to file system.
         add_frame_to_captures_and_log(last_timestamp, last_frame, MOTION_ENDS)
 
+#Our various configurations. Note that we are keeping our configs in the global scope.
 def load_configs():
     try:
         #This is the only file path that is hardcoded since it's where the rest of the paths and configs live.
@@ -186,6 +196,7 @@ if __name__ == "__main__":
         write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Unknown error accessing camera.  ", None))
         exit()
 
+    #The continuous nature of this tool demands a while true loop that runs til break.
     while True:
         # Capture frame-by-frame
         ret, frame = cap.read()
@@ -197,8 +208,6 @@ if __name__ == "__main__":
             # if frame is read correctly ret is True
             if not ret:
                 #Testing shows that this is how CV2 checks for "the camera was disconnected"
-                #TODO write an error message not from the example. Handle the error.
-                print("Can't receive frame (stream end?). Exiting ...")
                 write_line_to_error_log(create_error_ndjson_line(datetime.now(), "Exting program due to camera error.", None))
                 break
 
